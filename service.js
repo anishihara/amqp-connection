@@ -125,9 +125,10 @@ const onMessage = (exchange, queueName, routingKey, messageHandler, queueConfigs
         channel.bindQueue(q.queue, exchange, routingKey);
         channel.consume(q.queue, (msg) => {
             if (typeof messageHandler.then == 'function') {
-                messageHandler.then(r => { if (!config.noAck) channel.ack(msg); });
+                messageHandler(msg).then(r => { if (!config.noAck) channel.ack(msg); });
             }
             else{
+                messageHandler(msg);
                 if (!config.noAck) channel.ack(msg);
             }
         }, config);
