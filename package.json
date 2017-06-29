@@ -1,6 +1,6 @@
 {
   "name": "amqp-connection",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "Easily manage amqp connections.",
   "main": "service.js",
   "dependencies": {
@@ -10,6 +10,10 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "nishihara",
-  "license": "ISC"
+  "author": "Anderson Nishihara",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/https://github.com/anishihara/amqp-connectionnpm/npm.git"
+  }
 }

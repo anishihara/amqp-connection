@@ -10,7 +10,7 @@ const publishOfflineMessage = () => {
     while (true) {
         const m = offlinePubQueue.shift();
         if (!m) break;
-        send(m.exchange, m.topic, m.message);
+        send(m.exchange, m.routingKey, m.message);
     }
     return Promise.resolve({ connection, channel });
 }
@@ -48,7 +48,7 @@ const reconnect = () => {
 
 const reAttachMessageHandlers = () => {
     messageHandlersData.forEach(data => {
-        onMessage(data.exchange, data.queueName, data.topic, data.messageHandler,data.config);
+        onMessage(data.exchange, data.queueName, data.routingKey, data.messageHandler,data.config);
     });
 }
 
@@ -63,7 +63,7 @@ const connect = (server) => {
                 .then(handleChannelCreated)
                 .then(publishOfflineMessage)
                 .then(reAttachMessageHandlers).catch(err => {
-                    console.error(`#### Houve um erro! ${new Date()}`);
+                    console.error(`[AMQP] error - ${new Date()}`);
                     console.error(err);
                     reconnect();
                 });
@@ -74,33 +74,31 @@ const connect = (server) => {
         .then(handleChannelCreated)
         .then(publishOfflineMessage)
         .then(reAttachMessageHandlers).catch(err => {
-            console.error(`#### Houve um erro! ${new Date()}`);
+            console.error(`[AMQP] error - ${new Date()}`);
             console.error(err);
             reconnect();
         })
 }
 
 const disconnect = () => {
-    console.log("Disconnecting...")
     serverUri = null;
     if (connection) {
         connection.removeListener('close', handleReconnection);
         connection.close();
     }
+    messageHandlersData.length=0;
+    offlinePubQueue.length=0;
     connection = null;
     channel = null;
-    console.log("Disconnected!")
 }
 
-const send = (exchange, topic, message) => {
+const send = (exchange, routingKey, message) => {
     try {
-        console.log(`Tópico da mensagem: ${topic}`);
-        console.log(`Mensagem enviada para MQ: ${message}`);
         return new Promise((resolve, reject) => {
-            channel.publish(exchange, topic, new Buffer(message), { persist: false }, (err, ok) => {
+            channel.publish(exchange, routingKey, new Buffer(message), { persist: false }, (err, ok) => {
                 if (err) {
                     console.error("[AMQP] publish", err);
-                    offlinePubQueue.push({ exchange, topic, content });
+                    offlinePubQueue.push({ exchange, routingKey, content });
                     connection.close();
                     reject(err);
                 }
@@ -110,27 +108,31 @@ const send = (exchange, topic, message) => {
     }
     catch (err) {
         console.error(err)
-        offlinePubQueue.push({ exchange, topic, message });
+        offlinePubQueue.push({ exchange, routingKey, message });
         connection.close();
         return Promise.reject(err);
     }
 }
 
 
-const onMessage = (exchange, queueName, topic, messageHandler, queueConfigs) => {
+const onMessage = (exchange, queueName, routingKey, messageHandler, queueConfigs) => {
     const config = queueConfigs?queueConfigs: {
         noAck:true,
         autoDelete:false,
         durable:true
     }
     channel.assertQueue(queueName, config).then((q) => {
-        channel.bindQueue(q.queue, exchange, topic);
+        channel.bindQueue(q.queue, exchange, routingKey);
         channel.consume(q.queue, (msg) => {
-            messageHandler(msg).then(r => { if (!config.noAck) channel.ack(msg); });
+            if (typeof messageHandler.then == 'function') {
+                messageHandler.then(r => { if (!config.noAck) channel.ack(msg); });
+            }
+            else{
+                if (!config.noAck) channel.ack(msg);
+            }
         }, config);
-        if (!messageHandlersData.find(a => a.exchange === exchange && a.queueName === queueName && a.topic === topic && a.messageHandler === messageHandler && a.config === config)) messageHandlersData.push({ exchange,queueName, topic, messageHandler,config});
-    })
-        .catch(err => { console.error(err) })
+        if (!messageHandlersData.find(a => a.exchange === exchange && a.queueName === queueName && a.routingKey === routingKey && a.messageHandler === messageHandler && a.config === config)) messageHandlersData.push({ exchange,queueName, routingKey, messageHandler,config});
+    }).catch(err => { console.error(err) })
 }
 
 
