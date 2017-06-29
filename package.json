@@ -1,0 +1,15 @@
+{
+  "name": "amqp-connection",
+  "version": "1.1.5",
+  "description": "Easily manage amqp connections.",
+  "main": "service.js",
+  "dependencies": {
+    "amqplib": "^0.5.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "nishihara",
+  "license": "ISC"
+}
