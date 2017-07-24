@@ -3,6 +3,7 @@ const amqp = require('amqplib');
 let serverUri = null;
 let channel = null;
 let connection = null;
+let prefetchCount = 1000;
 const messageHandlersData = [];
 const offlinePubQueue = [];
 
@@ -17,6 +18,7 @@ const publishOfflineMessage = () => {
 
 const handleChannelCreated = (ch) => {
     channel = ch;
+    channel.prefetch(prefetchCount);
     return channel;
 }
 
@@ -52,7 +54,8 @@ const reAttachMessageHandlers = () => {
     });
 }
 
-const connect = (server) => {
+const connect = (server,prefetch=1000) => {
+    prefetchCount = prefetch;
     if (!serverUri) serverUri = server;
     if (connection) {
         if (channel) {
