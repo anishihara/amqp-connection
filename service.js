@@ -55,7 +55,7 @@ const reAttachMessageHandlers = () => {
 }
 
 const connect = (server,prefetch=1000) => {
-    prefetchCount = prefetch;
+    if (!prefetchCount) prefetchCount = prefetch;
     if (!serverUri) serverUri = server;
     if (connection) {
         if (channel) {
