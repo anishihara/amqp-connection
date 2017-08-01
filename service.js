@@ -54,7 +54,7 @@ const reAttachMessageHandlers = () => {
     });
 }
 
-const connect = (server,prefetch=1000) => {
+const connect = (server,prefetch=1) => {
     if (!prefetchCount) prefetchCount = prefetch;
     if (!serverUri) serverUri = server;
     if (connection) {
