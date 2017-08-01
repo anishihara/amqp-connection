@@ -3,7 +3,7 @@ const amqp = require('amqplib');
 let serverUri = null;
 let channel = null;
 let connection = null;
-let prefetchCount = 1000;
+let prefetchCount = 1;
 const messageHandlersData = [];
 const offlinePubQueue = [];
 
