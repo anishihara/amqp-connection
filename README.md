@@ -26,6 +26,10 @@ Params:
 
 * connectionString [string] - The server's connection string. Ex: 'amqp://user:password@lazy-turkey.com/d'.
 
+Return:
+
+* connection [Object] - The server's connection object. This is the object created on **amqplib**'s connect method;
+
 ### send(exchange,routingKey,message)
 
 Publish the message on the specified *exchange* with the *routingKey*. If the connection is not available on publish, it buffers and try to publish the message on reconnection.

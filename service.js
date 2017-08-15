@@ -57,26 +57,21 @@ const reAttachMessageHandlers = () => {
 const connect = (server,prefetch=1) => {
     if (prefetchCount!==prefetch) prefetchCount = prefetch;
     if (!serverUri) serverUri = server;
+    
     if (connection) {
         if (channel) {
-            return Promise.resolve({ connection, channel })
-        }
-        else {
-            return connection.createConfirmChannel()
-                .then(handleChannelCreated)
-                .then(publishOfflineMessage)
-                .then(reAttachMessageHandlers).catch(err => {
-                    console.error(`[AMQP] error - ${new Date()}`);
-                    console.error(err);
-                    reconnect();
-                });
+            return Promise.resolve(connection)
         }
     }
-    return amqp.connect(serverUri)
-        .then(handleConnected)
+    const promise = connection ? connection.createConfirmChannel() : amqp.connect(serverUri).then(handleConnected);
+    return promise
         .then(handleChannelCreated)
         .then(publishOfflineMessage)
-        .then(reAttachMessageHandlers).catch(err => {
+        .then(reAttachMessageHandlers)
+        .then(()=>{
+            return Promise.resolve(connection);
+        })
+        .catch(err => {
             console.error(`[AMQP] error - ${new Date()}`);
             console.error(err);
             reconnect();
