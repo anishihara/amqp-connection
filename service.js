@@ -1,9 +1,8 @@
 const amqp = require('amqplib');
 
-let serverUri = null;
-let channel = null;
 let connection = null;
-let prefetchCount = 1;
+let channel = null;
+let handleReconnection = null;
 const messageHandlersData = [];
 const offlinePubQueue = [];
 
@@ -13,84 +12,56 @@ const publishOfflineMessage = () => {
         if (!m) break;
         send(m.exchange, m.routingKey, m.message);
     }
-    return Promise.resolve({ connection, channel });
-}
-
-const handleChannelCreated = (ch) => {
-    channel = ch;
-    channel.prefetch(prefetchCount);
-    return channel;
-}
-
-const handleConnected = (conn) => {
-    connection = conn;
-    connection.on("error", onError);
-    connection.on("close", handleReconnection);
-    return conn.createConfirmChannel();
-}
-
-const onError = (err) => {
-    if (err.message !== "Connection closing") {
-        console.error("[AMQP] conn error", err.message);
-    }
-}
-const handleReconnection = () => {
-    console.error("[AMQP] reconnecting");
-    return setTimeout(reconnect, 1000);
-}
-
-const reconnect = () => {
-    if (connection) {
-        connection.removeListener('close', handleReconnection);
-    }
-    connection = null;
-    channel = null;
-    connect(serverUri,prefetchCount);
+    return Promise.resolve();
 }
 
 const reAttachMessageHandlers = () => {
     messageHandlersData.forEach(data => {
-        onMessage(data.exchange, data.queueName, data.routingKey, data.messageHandler,data.config);
+        onMessage(data.exchange, data.queueName, data.routingKey, data.messageHandler, data.config);
     });
+    return Promise.resolve();
 }
 
-const connect = (server,prefetch=1) => {
-    if (prefetchCount!==prefetch) prefetchCount = prefetch;
-    if (!serverUri) serverUri = server;
-    if (connection) {
-        if (channel) {
-            return Promise.resolve({ connection, channel })
-        }
-        else {
-            return connection.createConfirmChannel()
-                .then(handleChannelCreated)
-                .then(publishOfflineMessage)
-                .then(reAttachMessageHandlers).catch(err => {
-                    console.error(`[AMQP] error - ${new Date()}`);
-                    console.error(err);
-                    reconnect();
-                });
-        }
-    }
-    return amqp.connect(serverUri)
-        .then(handleConnected)
-        .then(handleChannelCreated)
+const connect = (server, prefetch = 1) => {
+    return amqp.connect(server)
+        .then(conn => {
+            connection = conn;
+            connection.on('close', () => {
+                setTimeout(() => {
+                    connect(server, prefetch);
+                }, 1000)
+            });
+            connection.on('error', (err) => {
+                if (err.message !== "Connection closing") {
+                    console.error("[AMQP] conn error", err.message);
+                }
+            })
+            return connection.createConfirmChannel();
+        })
+        .then(ch => {
+            channel = ch;
+            channel.prefetch(prefetch);
+            return Promise.resolve(channel);
+        })
         .then(publishOfflineMessage)
-        .then(reAttachMessageHandlers).catch(err => {
+        .then(reAttachMessageHandlers)
+        .then((res)=>{
+            return Promise.resolve(connection);
+        })
+        .catch(err => {
             console.error(`[AMQP] error - ${new Date()}`);
             console.error(err);
-            reconnect();
-        })
+            Promise.reject(err);
+        });
 }
 
 const disconnect = () => {
-    serverUri = null;
     if (connection) {
         connection.removeListener('close', handleReconnection);
         connection.close();
     }
-    messageHandlersData.length=0;
-    offlinePubQueue.length=0;
+    messageHandlersData.length = 0;
+    offlinePubQueue.length = 0;
     connection = null;
     channel = null;
 }
@@ -119,10 +90,10 @@ const send = (exchange, routingKey, message) => {
 
 
 const onMessage = (exchange, queueName, routingKey, messageHandler, queueConfigs) => {
-    const config = queueConfigs?queueConfigs: {
-        noAck:true,
-        autoDelete:false,
-        durable:true
+    const config = queueConfigs ? queueConfigs : {
+        noAck: true,
+        autoDelete: false,
+        durable: true
     }
     channel.assertQueue(queueName, config).then((q) => {
         channel.bindQueue(q.queue, exchange, routingKey);
@@ -130,12 +101,12 @@ const onMessage = (exchange, queueName, routingKey, messageHandler, queueConfigs
             if (typeof messageHandler.then == 'function') {
                 messageHandler(msg).then(r => { if (!config.noAck) channel.ack(msg); });
             }
-            else{
+            else {
                 messageHandler(msg);
                 if (!config.noAck) channel.ack(msg);
             }
         }, config);
-        if (!messageHandlersData.find(a => a.exchange === exchange && a.queueName === queueName && a.routingKey === routingKey && a.messageHandler === messageHandler && a.config === config)) messageHandlersData.push({ exchange,queueName, routingKey, messageHandler,config});
+        if (!messageHandlersData.find(a => a.exchange === exchange && a.queueName === queueName && a.routingKey === routingKey && a.messageHandler === messageHandler && a.config === config)) messageHandlersData.push({ exchange, queueName, routingKey, messageHandler, config });
     }).catch(err => { console.error(err) })
 }
 
