@@ -36,7 +36,7 @@ const onError = (err) => {
 }
 const handleReconnection = () => {
     console.error("[AMQP] reconnecting");
-    return setTimeout(reconnect, 1000);
+    return setTimeout(reconnect, 5000);
 }
 
 const reconnect = () => {
@@ -52,6 +52,7 @@ const reAttachMessageHandlers = () => {
     messageHandlersData.forEach(data => {
         onMessage(data.exchange, data.queueName, data.routingKey, data.messageHandler,data.config);
     });
+    return Promise.resolve();
 }
 
 const connect = (server,prefetch=1) => {
@@ -74,7 +75,7 @@ const connect = (server,prefetch=1) => {
         .catch(err => {
             console.error(`[AMQP] error - ${new Date()}`);
             console.error(err);
-            reconnect();
+            handleReconnection();
         })
 }
 
