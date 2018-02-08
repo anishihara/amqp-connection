@@ -1,6 +1,6 @@
 {
   "name": "amqp-connection",
-  "version": "1.1.14",
+  "version": "1.1.15",
   "description": "Easily manage amqp connections.",
   "main": "service.js",
   "dependencies": {
