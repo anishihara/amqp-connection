@@ -1,6 +1,6 @@
 {
   "name": "amqp-connection",
-  "version": "1.1.15",
+  "version": "1.1.16",
   "description": "Easily manage amqp connections.",
   "main": "service.js",
   "dependencies": {
@@ -14,6 +14,6 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/https://github.com/anishihara/amqp-connectionnpm/npm.git"
+    "url": "https://github.com/https://github.com/anishihara/amqp-connection/npm.git"
   }
 }
