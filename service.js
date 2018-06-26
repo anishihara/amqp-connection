@@ -147,11 +147,11 @@ const onMessage = (exchange, queueName, routingKey, messageHandler, queueConfigs
     channel.assertQueue(queueName, config).then((q) => {
         channel.bindQueue(q.queue, exchange, routingKey);
         channel.consume(q.queue, (msg) => {
-            if (typeof messageHandler.then == 'function') {
-                messageHandler(msg).then(r => { if (!config.noAck) channel.ack(msg); });
+            const msgResult = messageHandler(msg);
+            if (msgResult && typeof msgResult.then === 'function') {
+                msgResult.then(r => { if (!config.noAck) channel.ack(msg); });
             }
             else {
-                messageHandler(msg);
                 if (!config.noAck) channel.ack(msg);
             }
         }, config);
