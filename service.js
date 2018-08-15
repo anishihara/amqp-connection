@@ -8,6 +8,7 @@ const messageHandlersData = [];
 const offlinePubQueue = [];
 
 const publishOfflineMessage = () => {
+    if(!channel) Promise.reject(`Channel is null.`);
     while (true) {
         const m = offlinePubQueue.shift();
         if (!m) break;
@@ -88,7 +89,7 @@ const connect = (server, prefetch = 1) => {
             return Promise.resolve(connection)
         }
     }
-    const promise = connection ? connection.createConfirmChannel() : amqp.connect(serverUri).then(handleConnected);
+    const promise = connection ? handleConnected(connection) : amqp.connect(serverUri).then(handleConnected);
     return promise
         .then(handleChannelCreated)
         .then(publishOfflineMessage)
