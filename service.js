@@ -6,6 +6,7 @@ let connection = null;
 let prefetchCount = 1;
 const messageHandlersData = [];
 const offlinePubQueue = [];
+let isConnecting = false;
 
 const publishOfflineMessage = () => {
     if(!channel) Promise.reject(`Channel is null.`);
@@ -20,9 +21,19 @@ const publishOfflineMessage = () => {
 const handleChannelCreated = (ch) => {
     channel = ch;
     channel.prefetch(prefetchCount);
-    channel.on("error", onError);
-    channel.on("close", handleReconnection);
+    channel.on("error", onErrorChannel);
+    channel.on("close", onChannelClosed);
     return channel;
+}
+
+const onErrorChannel = (err)=>{
+    console.error("[AMQP] channel error");
+    console.error(err);
+}
+
+const onChannelClosed = ()=>{
+    console.error("[AMQP] channel closed")
+    handleReconnection();
 }
 
 const handleConnected = (conn) => {
@@ -36,17 +47,22 @@ const onError = (err) => {
     if (err.message !== "Connection closing") {
         console.error("[AMQP] conn error", err.message);
     }
-    handleReconnection();
+    //handleReconnection();
 }
 const handleReconnection = () => {
     console.error("[AMQP] reconnecting");
-    return setTimeout(reconnect, 5000);
+    if(!isConnecting){
+        isConnecting=true;
+        return setTimeout(reconnect, 5000);
+    }
+    return;
 }
 
 const cleanUp = () => {
     if (channel) {
         channel.removeListener('close', handleReconnection);
         channel.removeListener('error',onError);
+        channel.removeAllListeners();
         try {
             channel.close();
         } catch (err) {
@@ -56,6 +72,7 @@ const cleanUp = () => {
     if (connection) {
         connection.removeListener('close', handleReconnection);
         connection.removeListener('error',onError);
+        connection.removeAllListeners();
         try {
             connection.close();
         }
@@ -71,6 +88,7 @@ const cleanUp = () => {
 const reconnect = () => {
     cleanUp();
     connect(serverUri, prefetchCount);
+    isConnecting=false;
 }
 
 const reAttachMessageHandlers = () => {
@@ -108,6 +126,7 @@ const disconnect = () => {
     serverUri = null;
     if (connection) {
         connection.removeListener('close', handleReconnection);
+        connection.removeAllListeners();
         connection.close();
     }
     messageHandlersData.length = 0;
